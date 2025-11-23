@@ -1,10 +1,10 @@
 name: Terraform Apply
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
   terraform:
@@ -38,14 +38,9 @@ jobs:
           TF_VAR_tenant_id:             ${{ secrets.AZURE_TENANT_ID }}
           TF_VAR_location:              ${{ secrets.TF_VAR_LOCATION }}
           TF_VAR_resource_group_name:   ${{ secrets.TF_VAR_RESOURCE_GROUP_NAME }}
-
           TF_VAR_key_vault_name:        ${{ secrets.TF_VAR_KEY_VAULT_NAME }}
-
-          # 👇 Esto es lo más importante
           TF_VAR_github_principal_id:   ${{ secrets.AZURE_FEDERATED_OBJID }}
-
           TF_VAR_admin_user_object_id:  ${{ secrets.ADMIN_USER_OBJECT_ID }}
-
           TF_VAR_sql_database_name:     ${{ secrets.TF_VAR_SQL_DATABASE_NAME }}
           TF_VAR_sql_admin_login:       ${{ secrets.TF_VAR_SQL_ADMIN_LOGIN }}
           TF_VAR_sql_admin_password:    ${{ secrets.TF_VAR_SQL_ADMIN_PASSWORD }}
