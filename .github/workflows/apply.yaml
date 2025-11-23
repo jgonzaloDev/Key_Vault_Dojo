@@ -1,14 +1,17 @@
 name: Terraform Apply
 
 on:
-  workflow_dispatch:   # 👈 SOLO se ejecuta manualmente (MATCH con tu federated)
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write    # 👈 requerido para OIDC
+      id-token: write
       contents: read
 
     steps:
