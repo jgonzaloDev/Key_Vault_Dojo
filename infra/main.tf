@@ -4,10 +4,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.0"
     }
-    time = {
-      source = "hashicorp/time"
-      version = "~> 0.9"
-    }
   }
   required_version = ">= 1.1.0"
 }
@@ -18,8 +14,6 @@ provider "azurerm" {
   tenant_id       = var.tenant_id
 }
 
-provider "time" {}
-
 ###############################################################
 # 1️⃣ Resource Group
 ###############################################################
@@ -29,116 +23,7 @@ resource "azurerm_resource_group" "dojo" {
 }
 
 ###############################################################
-# 2️⃣ Key Vault con RBAC
-###############################################################
-resource "azurerm_key_vault" "kv" {
-  name                = var.key_vault_name
-  resource_group_name = azurerm_resource_group.dojo.name
-  location            = azurerm_resource_group.dojo.location
-  tenant_id           = var.tenant_id
-
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
-  purge_protection_enabled   = false
-  enable_rbac_authorization  = true
-}
-
-###############################################################
-# 3️⃣ GitHub OIDC → Key Vault Secrets Officer
-###############################################################
-resource "azurerm_role_assignment" "github_kv_secrets" {
-  scope                = azurerm_key_vault.kv.id
-  role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = var.github_principal_id
-}
-
-###############################################################
-# 4️⃣ Tu Usuario → Key Vault Administrator
-###############################################################
-resource "azurerm_role_assignment" "user_kv_admin" {
-  scope                = azurerm_key_vault.kv.id
-  role_definition_name = "Key Vault Administrator"
-  principal_id         = var.admin_user_object_id
-}
-
-###############################################################
-# 5️⃣ Espera propagación IAM
-###############################################################
-resource "time_sleep" "wait_for_iam" {
-  depends_on = [
-    azurerm_role_assignment.github_kv_secrets,
-    azurerm_role_assignment.user_kv_admin
-  ]
-  create_duration = "45s"
-}
-
-###############################################################
-# 6️⃣ Secretos (CREA O ADOPTA — NO FALLA)
-###############################################################
-
-resource "azurerm_key_vault_secret" "bd_datos" {
-  name         = "BDdatos"
-  value        = var.sql_database_name
-  key_vault_id = azurerm_key_vault.kv.id
-
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
-
-  depends_on = [time_sleep.wait_for_iam]
-}
-
-resource "azurerm_key_vault_secret" "userbd" {
-  name         = "userbd"
-  value        = var.sql_admin_login
-  key_vault_id = azurerm_key_vault.kv.id
-
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
-
-  depends_on = [time_sleep.wait_for_iam]
-}
-
-resource "azurerm_key_vault_secret" "passwordbd" {
-  name         = "passwordbd"
-  value        = var.sql_admin_password
-  key_vault_id = azurerm_key_vault.kv.id
-
-  lifecycle {
-    ignore_changes = [
-      value
-    ]
-  }
-
-  depends_on = [time_sleep.wait_for_iam]
-}
-
-###############################################################
-# 7️⃣ Lectura final
-###############################################################
-
-data "azurerm_key_vault_secret" "bd_datos_read" {
-  name         = azurerm_key_vault_secret.bd_datos.name
-  key_vault_id = azurerm_key_vault.kv.id
-}
-
-data "azurerm_key_vault_secret" "userbd_read" {
-  name         = azurerm_key_vault_secret.userbd.name
-  key_vault_id = azurerm_key_vault.kv.id
-}
-
-data "azurerm_key_vault_secret" "passwordbd_read" {
-  name         = azurerm_key_vault_secret.passwordbd.name
-  key_vault_id = azurerm_key_vault.kv.id
-}
-
-###############################################################
-# 8️⃣ Virtual Network (VNet)
+# 2️⃣ Virtual Network (VNet)
 ###############################################################
 
 resource "azurerm_virtual_network" "vnet" {
@@ -148,7 +33,7 @@ resource "azurerm_virtual_network" "vnet" {
   address_space       = [var.address_space]
 }
 
-# Subnet para integración de App Service
+# Subnet para integración de App Services
 resource "azurerm_subnet" "integration" {
   name                 = "subnet-integration"
   resource_group_name  = azurerm_resource_group.dojo.name
@@ -164,9 +49,9 @@ resource "azurerm_subnet" "integration" {
   }
 }
 
-# Subnet para la VM (Backend)
+# Subnet para la VM (Docker Collector + Elastic)
 resource "azurerm_subnet" "vm_subnet" {
-  name                 = "subnet-vm-backend"
+  name                 = "subnet-vm-docker"
   resource_group_name  = azurerm_resource_group.dojo.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [var.subnet_vm_cidr]
@@ -181,15 +66,15 @@ resource "azurerm_subnet" "privateendpoint" {
 }
 
 ###############################################################
-# 9️⃣ Network Security Group para VM
+# 3️⃣ Network Security Group para VM
 ###############################################################
 
 resource "azurerm_network_security_group" "vm_nsg" {
-  name                = "nsg-vm-backend"
+  name                = "nsg-vm-docker"
   location            = azurerm_resource_group.dojo.location
   resource_group_name = azurerm_resource_group.dojo.name
 
-  # Permitir SSH
+  # SSH
   security_rule {
     name                       = "Allow-SSH"
     priority                   = 100
@@ -202,7 +87,7 @@ resource "azurerm_network_security_group" "vm_nsg" {
     destination_address_prefix = "*"
   }
 
-  # Permitir RDP para escritorio remoto (XRDP)
+  # RDP
   security_rule {
     name                       = "Allow-RDP"
     priority                   = 110
@@ -215,7 +100,7 @@ resource "azurerm_network_security_group" "vm_nsg" {
     destination_address_prefix = "*"
   }
 
-  # Permitir tráfico desde la VNet
+  # VNet
   security_rule {
     name                       = "Allow-VNet"
     priority                   = 120
@@ -228,15 +113,41 @@ resource "azurerm_network_security_group" "vm_nsg" {
     destination_address_prefix = "*"
   }
 
-  # Permitir puerto de aplicación backend (ejemplo: 8080)
+  # Elasticsearch
   security_rule {
-    name                       = "Allow-Backend-Port"
+    name                       = "Allow-Elasticsearch"
     priority                   = 130
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "8080"
+    destination_port_range     = "9200"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # Kibana
+  security_rule {
+    name                       = "Allow-Kibana"
+    priority                   = 140
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "5601"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # OTLP
+  security_rule {
+    name                       = "Allow-OTLP"
+    priority                   = 150
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["4317", "4318"]
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -248,11 +159,11 @@ resource "azurerm_subnet_network_security_group_association" "vm_nsg_assoc" {
 }
 
 ###############################################################
-# 🔟 Public IP para VM
+# 4️⃣ Public IP para VM
 ###############################################################
 
 resource "azurerm_public_ip" "vm_pip" {
-  name                = "pip-vm-backend"
+  name                = "pip-vm-docker"
   location            = azurerm_resource_group.dojo.location
   resource_group_name = azurerm_resource_group.dojo.name
   allocation_method   = "Static"
@@ -260,11 +171,11 @@ resource "azurerm_public_ip" "vm_pip" {
 }
 
 ###############################################################
-# 1️⃣1️⃣ Network Interface para VM
+# 5️⃣ Network Interface para VM
 ###############################################################
 
 resource "azurerm_network_interface" "vm_nic" {
-  name                = "nic-vm-backend"
+  name                = "nic-vm-docker"
   location            = azurerm_resource_group.dojo.location
   resource_group_name = azurerm_resource_group.dojo.name
 
@@ -277,24 +188,21 @@ resource "azurerm_network_interface" "vm_nic" {
 }
 
 ###############################################################
-# 1️⃣2️⃣ Virtual Machine Linux con Escritorio + Java + Maven + Postman
+# 6️⃣ Virtual Machine con Docker
 ###############################################################
 
-resource "azurerm_linux_virtual_machine" "backend_vm" {
-  name                = var.vm_name
-  resource_group_name = azurerm_resource_group.dojo.name
-  location            = azurerm_resource_group.dojo.location
-  size                = var.vm_size
-  admin_username      = var.vm_admin_username
+resource "azurerm_linux_virtual_machine" "docker_vm" {
+  name                            = var.vm_name
+  resource_group_name             = azurerm_resource_group.dojo.name
+  location                        = azurerm_resource_group.dojo.location
+  size                            = var.vm_size
+  admin_username                  = var.vm_admin_username
+  admin_password                  = var.vm_admin_password
+  disable_password_authentication = false
 
   network_interface_ids = [
     azurerm_network_interface.vm_nic.id,
   ]
-
-  admin_ssh_key {
-    username   = var.vm_admin_username
-    public_key = var.vm_ssh_public_key
-  }
 
   os_disk {
     caching              = "ReadWrite"
@@ -309,18 +217,18 @@ resource "azurerm_linux_virtual_machine" "backend_vm" {
     version   = "latest"
   }
 
-  custom_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
+  custom_data = base64encode(templatefile("${path.module}/cloud-init-docker.yaml", {
     admin_username = var.vm_admin_username
   }))
 
   tags = {
     Environment = "Development"
-    Purpose     = "Backend"
+    Purpose     = "Docker-Collector-Elastic"
   }
 }
 
 ###############################################################
-# 1️⃣3️⃣ SQL Server
+# 7️⃣ SQL Server
 ###############################################################
 
 resource "azurerm_mssql_server" "sql" {
@@ -336,7 +244,6 @@ resource "azurerm_mssql_server" "sql" {
   }
 }
 
-# Firewall rule para permitir servicios de Azure
 resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
   name             = "AllowAzureServices"
   server_id        = azurerm_mssql_server.sql.id
@@ -344,7 +251,6 @@ resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
   end_ip_address   = "0.0.0.0"
 }
 
-# Firewall rule para permitir acceso desde la VM (se actualiza después del deploy)
 resource "azurerm_mssql_firewall_rule" "allow_vm" {
   name             = "AllowVM"
   server_id        = azurerm_mssql_server.sql.id
@@ -353,7 +259,7 @@ resource "azurerm_mssql_firewall_rule" "allow_vm" {
 }
 
 ###############################################################
-# 1️⃣4️⃣ SQL Database
+# 8️⃣ SQL Database
 ###############################################################
 
 resource "azurerm_mssql_database" "db" {
@@ -367,10 +273,10 @@ resource "azurerm_mssql_database" "db" {
 }
 
 ###############################################################
-# 1️⃣5️⃣ App Service Plan
+# 9️⃣ App Service Plan
 ###############################################################
 
-resource "azurerm_service_plan" "frontend_plan" {
+resource "azurerm_service_plan" "app_plan" {
   name                = var.app_service_plan_name
   resource_group_name = azurerm_resource_group.dojo.name
   location            = azurerm_resource_group.dojo.location
@@ -379,14 +285,14 @@ resource "azurerm_service_plan" "frontend_plan" {
 }
 
 ###############################################################
-# 1️⃣6️⃣ App Service (Frontend) con VNet Integration
+# 🔟 App Service FRONTEND
 ###############################################################
 
 resource "azurerm_linux_web_app" "frontend" {
-  name                = var.webapp_name
+  name                = var.webapp_frontend_name
   resource_group_name = azurerm_resource_group.dojo.name
-  location            = azurerm_service_plan.frontend_plan.location
-  service_plan_id     = azurerm_service_plan.frontend_plan.id
+  location            = azurerm_service_plan.app_plan.location
+  service_plan_id     = azurerm_service_plan.app_plan.id
 
   site_config {
     always_on = true
@@ -398,7 +304,7 @@ resource "azurerm_linux_web_app" "frontend" {
 
   app_settings = {
     "WEBSITE_NODE_DEFAULT_VERSION" = "18-lts"
-    "BACKEND_URL"                  = "http://${azurerm_network_interface.vm_nic.private_ip_address}:8080"
+    "BACKEND_URL"                  = "https://${var.webapp_backend_name}.azurewebsites.net"
   }
 
   identity {
@@ -412,7 +318,45 @@ resource "azurerm_linux_web_app" "frontend" {
 }
 
 ###############################################################
-# 1️⃣7️⃣ VNet Integration para App Service
+# 1️⃣1️⃣ App Service BACKEND
+###############################################################
+
+resource "azurerm_linux_web_app" "backend" {
+  name                = var.webapp_backend_name
+  resource_group_name = azurerm_resource_group.dojo.name
+  location            = azurerm_service_plan.app_plan.location
+  service_plan_id     = azurerm_service_plan.app_plan.id
+
+  site_config {
+    always_on = true
+
+    application_stack {
+      java_server         = "TOMCAT"
+      java_server_version = "10.0"
+      java_version        = "17"
+    }
+  }
+
+  app_settings = {
+    "SQL_SERVER"                  = azurerm_mssql_server.sql.fully_qualified_domain_name
+    "SQL_DATABASE"                = azurerm_mssql_database.db.name
+    "SQL_USER"                    = var.sql_admin_login
+    "SQL_PASSWORD"                = var.sql_admin_password
+    "OTEL_EXPORTER_OTLP_ENDPOINT" = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4318"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = {
+    Environment = "Development"
+    Purpose     = "Backend"
+  }
+}
+
+###############################################################
+# 1️⃣2️⃣ VNet Integration Frontend
 ###############################################################
 
 resource "azurerm_app_service_virtual_network_swift_connection" "frontend_vnet" {
@@ -421,13 +365,10 @@ resource "azurerm_app_service_virtual_network_swift_connection" "frontend_vnet" 
 }
 
 ###############################################################
-# 1️⃣8️⃣ Asignar permisos al App Service para leer secretos
+# 1️⃣3️⃣ VNet Integration Backend
 ###############################################################
 
-resource "azurerm_role_assignment" "webapp_kv_secrets" {
-  scope                = azurerm_key_vault.kv.id
-  role_definition_name = "Key Vault Secrets User"
-  principal_id         = azurerm_linux_web_app.frontend.identity[0].principal_id
-
-  depends_on = [time_sleep.wait_for_iam]
+resource "azurerm_app_service_virtual_network_swift_connection" "backend_vnet" {
+  app_service_id = azurerm_linux_web_app.backend.id
+  subnet_id      = azurerm_subnet.integration.id
 }

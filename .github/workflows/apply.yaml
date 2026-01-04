@@ -15,11 +15,9 @@ jobs:
       contents: read
 
     steps:
-      # 1️⃣ Checkout del repositorio
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 2️⃣ Login en Azure usando OIDC
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
@@ -27,54 +25,35 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 3️⃣ Instalación de Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      # 4️⃣ Terraform Init
       - name: Terraform Init
         working-directory: infra
         run: terraform init
 
-      # 5️⃣ Terraform Apply – MAIN
       - name: Terraform Apply
         working-directory: infra
         run: terraform apply -auto-approve
         env:
-
-          # 🔵 Azure principales
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          TF_VAR_tenant_id:       ${{ secrets.AZURE_TENANT_ID }}
-          TF_VAR_location:        ${{ secrets.TF_VAR_LOCATION }}
+          TF_VAR_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
+          TF_VAR_location: ${{ secrets.TF_VAR_LOCATION }}
           TF_VAR_resource_group_name: ${{ secrets.TF_VAR_RESOURCE_GROUP_NAME }}
 
-          # 🔐 Key Vault + Admin
-          TF_VAR_key_vault_name:        ${{ secrets.TF_VAR_KEY_VAULT_NAME }}
-          TF_VAR_admin_user_object_id:  ${{ secrets.TF_VAR_ADMIN_USER_OBJECT_ID }}
-
-          # 🔵 Credencial federada de GitHub (OIDC)
-          TF_VAR_github_principal_id:   ${{ secrets.TF_VAR_GITHUB_PRINCIPAL_ID }}
-
-          # 🗄 SQL Server
-          TF_VAR_sql_server_name:     ${{ secrets.TF_VAR_SQL_SERVER_NAME }}
-          TF_VAR_sql_database_name:   ${{ secrets.TF_VAR_SQL_DATABASE_NAME }}
-          TF_VAR_sql_admin_login:     ${{ secrets.TF_VAR_SQL_ADMIN_LOGIN }}
-          TF_VAR_sql_admin_password:  ${{ secrets.TF_VAR_SQL_ADMIN_PASSWORD }}
-
-          # 🌐 Virtual Network
+          TF_VAR_sql_server_name: ${{ secrets.TF_VAR_SQL_SERVER_NAME }}
+          TF_VAR_sql_database_name: ${{ secrets.TF_VAR_SQL_DATABASE_NAME }}
+          TF_VAR_sql_admin_login: ${{ secrets.TF_VAR_SQL_ADMIN_LOGIN }}
+          TF_VAR_sql_admin_password: ${{ secrets.TF_VAR_SQL_ADMIN_PASSWORD }}
           TF_VAR_vnet_name: ${{ secrets.TF_VAR_VNET_NAME }}
           TF_VAR_address_space: ${{ secrets.TF_VAR_ADDRESS_SPACE }}
           TF_VAR_subnet_integration_cidr: ${{ secrets.TF_VAR_SUBNET_INTEGRATION_CIDR }}
           TF_VAR_subnet_vm_cidr: ${{ secrets.TF_VAR_SUBNET_VM_CIDR }}
           TF_VAR_subnet_privateendpoint_cidr: ${{ secrets.TF_VAR_SUBNET_PRIVATEENDPOINT_CIDR }}
-
-          # 🖥️ Virtual Machine
           TF_VAR_vm_name: ${{ secrets.TF_VAR_VM_NAME }}
           TF_VAR_vm_size: ${{ secrets.TF_VAR_VM_SIZE }}
           TF_VAR_vm_admin_username: ${{ secrets.TF_VAR_VM_ADMIN_USERNAME }}
-          TF_VAR_vm_ssh_public_key: ${{ secrets.TF_VAR_VM_SSH_PUBLIC_KEY }}
-
-          # 🌐 App Service
+          TF_VAR_vm_admin_password: ${{ secrets.TF_VAR_VM_ADMIN_PASSWORD }}
           TF_VAR_app_service_plan_name: ${{ secrets.TF_VAR_APP_SERVICE_PLAN_NAME }}
-          TF_VAR_webapp_name: ${{ secrets.TF_VAR_WEBAPP_NAME }}
-
+          TF_VAR_webapp_frontend_name: ${{ secrets.TF_VAR_WEBAPP_FRONTEND_NAME }}
+          TF_VAR_webapp_backend_name: ${{ secrets.TF_VAR_WEBAPP_BACKEND_NAME }}

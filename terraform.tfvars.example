@@ -6,15 +6,6 @@ tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 resource_group_name = "rg-dojo-dev"
 location            = "East US"
 
-# Key Vault
-key_vault_name = "kv-dojo-unique123"
-
-# GitHub OIDC Principal
-github_principal_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
-# Admin User (tu Object ID)
-admin_user_object_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
 # SQL Server
 sql_server_name     = "sql-dojo-unique123"
 sql_database_name   = "db-dojo"
@@ -28,12 +19,13 @@ subnet_integration_cidr      = "10.0.1.0/24"
 subnet_vm_cidr               = "10.0.2.0/24"
 subnet_privateendpoint_cidr  = "10.0.3.0/24"
 
-# Virtual Machine
-vm_name            = "vm-backend-dojo"
+# Virtual Machine (Observability Stack)
+vm_name            = "vm-observability-dojo"
 vm_size            = "Standard_D2s_v3"
-vm_admin_username  = "azureuser"
-vm_ssh_public_key  = "ssh-rsa AAAAB3NzaC1yc2EAAAA... tu-clave-publica-aqui"
+vm_admin_username  = "dojo"
+vm_admin_password  = "123456789Da"
 
-# App Service
-app_service_plan_name = "plan-frontend-dojo"
-webapp_name           = "webapp-frontend-unique123"
+# App Services
+app_service_plan_name = "plan-dojo"
+webapp_frontend_name  = "webapp-frontend-dojo-unique123"
+webapp_backend_name   = "webapp-backend-dojo-unique123"

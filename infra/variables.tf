@@ -15,23 +15,6 @@ variable "location" {
   type = string
 }
 
-# Key Vault
-variable "key_vault_name" {
-  type = string
-}
-
-# IAM principal (GitHub Federated Credential)
-variable "github_principal_id" {
-  type        = string
-  description = "Object ID del GitHub Federated Credential"
-}
-
-# IAM para ti (usuario administrador del Key Vault)
-variable "admin_user_object_id" {
-  type        = string
-  description = "Object ID del usuario administrador que puede leer y administrar secretos"
-}
-
 # SQL Server
 variable "sql_server_name" {
   type = string
@@ -68,13 +51,13 @@ variable "address_space" {
 
 variable "subnet_integration_cidr" {
   type        = string
-  description = "CIDR para subnet de integración de App Service"
+  description = "CIDR para subnet de integración de App Services"
   default     = "10.0.1.0/24"
 }
 
 variable "subnet_vm_cidr" {
   type        = string
-  description = "CIDR para subnet de la VM Backend"
+  description = "CIDR para subnet de la VM Docker"
   default     = "10.0.2.0/24"
 }
 
@@ -90,8 +73,8 @@ variable "subnet_privateendpoint_cidr" {
 
 variable "vm_name" {
   type        = string
-  description = "Nombre de la Virtual Machine para Backend"
-  default     = "vm-backend-dojo"
+  description = "Nombre de la Virtual Machine para Docker"
+  default     = "vm-docker-dojo"
 }
 
 variable "vm_size" {
@@ -103,25 +86,31 @@ variable "vm_size" {
 variable "vm_admin_username" {
   type        = string
   description = "Usuario administrador de la VM"
-  default     = "azureuser"
+  default     = "dojo"
 }
 
-variable "vm_ssh_public_key" {
+variable "vm_admin_password" {
   type        = string
-  description = "Clave SSH pública para acceder a la VM"
+  description = "Contraseña para el usuario administrador de la VM"
+  sensitive   = true
 }
 
 ###############################################################
-# Variables de App Service
+# Variables de App Services
 ###############################################################
 
 variable "app_service_plan_name" {
   type        = string
   description = "Nombre del App Service Plan"
-  default     = "plan-frontend-dojo"
+  default     = "plan-apps-dojo"
 }
 
-variable "webapp_name" {
+variable "webapp_frontend_name" {
   type        = string
-  description = "Nombre del App Service (Frontend)"
+  description = "Nombre del App Service Frontend"
+}
+
+variable "webapp_backend_name" {
+  type        = string
+  description = "Nombre del App Service Backend"
 }
