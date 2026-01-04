@@ -115,9 +115,9 @@ runcmd:
   - mkdir -p /home/${admin_username}/otel-stack/elasticsearch-data
   - mkdir -p /home/${admin_username}/otel-stack/kibana-data
   
-  # ============================================
+  # ==============================================
   # Crear configuración de OTel Collector
-  # ============================================
+  # ==============================================
   - |
     cat > /home/${admin_username}/otel-stack/otel-collector-config/otel-collector-config.yaml <<'EOF'
     receivers:
