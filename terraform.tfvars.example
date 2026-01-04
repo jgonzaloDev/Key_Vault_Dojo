@@ -1,0 +1,39 @@
+# Azure Subscription
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Resource Group
+resource_group_name = "rg-dojo-dev"
+location            = "East US"
+
+# Key Vault
+key_vault_name = "kv-dojo-unique123"
+
+# GitHub OIDC Principal
+github_principal_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Admin User (tu Object ID)
+admin_user_object_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# SQL Server
+sql_server_name     = "sql-dojo-unique123"
+sql_database_name   = "db-dojo"
+sql_admin_login     = "sqladmin"
+sql_admin_password  = "YourSecureP@ssw0rd123!"
+
+# Virtual Network
+vnet_name                    = "vnet-dojo"
+address_space                = "10.0.0.0/16"
+subnet_integration_cidr      = "10.0.1.0/24"
+subnet_vm_cidr               = "10.0.2.0/24"
+subnet_privateendpoint_cidr  = "10.0.3.0/24"
+
+# Virtual Machine
+vm_name            = "vm-backend-dojo"
+vm_size            = "Standard_D2s_v3"
+vm_admin_username  = "azureuser"
+vm_ssh_public_key  = "ssh-rsa AAAAB3NzaC1yc2EAAAA... tu-clave-publica-aqui"
+
+# App Service
+app_service_plan_name = "plan-frontend-dojo"
+webapp_name           = "webapp-frontend-unique123"
