@@ -352,6 +352,46 @@ resource "azurerm_linux_web_app" "backend" {
     "SQL_USER"                    = var.sql_admin_login
     "SQL_PASSWORD"                = var.sql_admin_password
     "OTEL_EXPORTER_OTLP_ENDPOINT" = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4318"
+
+    #####################################
+    # 🗄️ Base de datos SQL Server
+    #####################################
+    "SPRING_DATASOURCE_DRIVER_CLASS_NAME" = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+    "SPRING_DATASOURCE_URL" = "jdbc:sqlserver://${azurerm_mssql_server.sql.fully_qualified_domain_name}:1433;databaseName=${azurerm_mssql_database.db.name};encrypt=true;trustServerCertificate=false;loginTimeout=30;"
+    "SPRING_DATASOURCE_USERNAME" = var.sql_admin_login
+    "SPRING_DATASOURCE_PASSWORD" = var.sql_admin_password
+
+    #####################################
+    # 🔍 Application Insights
+    #####################################
+    "ApplicationInsightsAgent_EXTENSION_VERSION" = "~3"
+
+    #####################################
+    # 📊 OpenTelemetry
+    #####################################
+    "OTEL_METRICS_EXPORTER"       = "otlp"
+    "OTEL_TRACES_EXPORTER"        = "otlp"
+    "OTEL_SERVICE_NAME"           = "spring-boot-backend"
+
+    #####################################
+    # 🌐 Aplicación Spring Boot
+    #####################################
+    "SERVER_PORT"               = "8080"
+    "SPRING_APPLICATION_NAME"   = "app"
+    "SPRING_PROFILES_ACTIVE"    = "production"
+
+    #####################################
+    # 🧩 JPA / Hibernate
+    #####################################
+    "SPRING_JPA_HIBERNATE_DDL_AUTO"            = "create-drop"
+    "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT" = "org.hibernate.dialect.SQLServerDialect"
+    "SPRING_JPA_SHOW_SQL"                     = "false"
+
+    #####################################
+    # 🔍 Elasticsearch (deshabilitado)
+    #####################################
+    "ELASTICSEARCH_ENABLED" = "false"
+    "ELASTICSEARCH_PORT"    = "9200"
   }
 
   identity {
