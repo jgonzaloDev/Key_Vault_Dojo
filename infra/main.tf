@@ -331,10 +331,19 @@ resource "azurerm_linux_web_app" "backend" {
     always_on = true
 
     application_stack {
-      java_server         = "TOMCAT"
-      java_server_version = "10.0"
+      java_server         = "JAVA"
+      java_server_version = "17"
       java_version        = "17"
     }
+    # CORS para permitir que el frontend acceda al backend
+    cors {
+      allowed_origins = [
+        "https://${var.app_service_name_web}.azurewebsites.net",
+        "http://localhost:3000"
+      ]
+      support_credentials = true
+    }
+
   }
 
   app_settings = {
