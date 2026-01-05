@@ -4,7 +4,8 @@
 # - Escritorio gráfico XFCE4
 # - XRDP para acceso remoto
 # - Docker + Docker Compose
-# - OTel Collector (gRPC puerto 4317)
+# - OTel Collector (gRPC puerto 4317, HTTP puerto 4318)
+# - APM Server (puerto 8200)
 # - Elasticsearch (puerto 9200)
 # - Kibana (puerto 5601)
 
@@ -21,7 +22,7 @@ packages:
   - xorg
   - xserver-xorg-core
   - xserver-xorg-input-all
-  # Navegadores y herramientas
+  # Navegadores
   - firefox
   - chromium-browser
   # Docker dependencies
@@ -45,16 +46,15 @@ runcmd:
   - echo "xfce4-session" > /home/${admin_username}/.xsession
   - chown ${admin_username}:${admin_username} /home/${admin_username}/.xsession
   
-  # Configurar startxfce4 para el usuario
+  # Configurar variables de entorno para XFCE
   - echo "#!/bin/bash" > /home/${admin_username}/.xsessionrc
   - echo "export XDG_SESSION_DESKTOP=xfce" >> /home/${admin_username}/.xsessionrc
-  - echo "export XDG_DATA_DIRS=/usr/share/xfce4:/usr/local/share:/usr/share:/var/lib/snapd/desktop" >> /home/${admin_username}/.xsessionrc
+  - echo "export XDG_DATA_DIRS=/usr/share/xfce4:/usr/local/share:/usr/share" >> /home/${admin_username}/.xsessionrc
   - echo "export XDG_CONFIG_DIRS=/etc/xdg/xfce4:/etc/xdg" >> /home/${admin_username}/.xsessionrc
   - chown ${admin_username}:${admin_username} /home/${admin_username}/.xsessionrc
   - chmod +x /home/${admin_username}/.xsessionrc
   
   # Configurar XRDP
-  - sed -i 's/3389/3389/g' /etc/xrdp/xrdp.ini
   - sed -i 's/max_bpp=32/max_bpp=128/g' /etc/xrdp/xrdp.ini
   - sed -i 's/xserverbpp=24/xserverbpp=128/g' /etc/xrdp/xrdp.ini
   
@@ -67,8 +67,6 @@ runcmd:
       export LANG LANGUAGE
     fi
     export XDG_SESSION_DESKTOP=xfce
-    export XDG_DATA_DIRS=/usr/share/xfce4:/usr/local/share:/usr/share:/var/lib/snapd/desktop
-    export XDG_CONFIG_DIRS=/etc/xdg/xfce4:/etc/xdg
     startxfce4
     XRDPEOF
   
@@ -85,20 +83,20 @@ runcmd:
     ResultActive=yes
     EOF
   
-  # Reiniciar servicio XRDP
+  # Habilitar y reiniciar XRDP
   - systemctl enable xrdp
   - systemctl restart xrdp
   
-  # Asegurar que el usuario esté en los grupos necesarios
+  # Agregar usuario a grupos necesarios
   - usermod -aG ssl-cert ${admin_username}
   
   # ============================================
   # Instalar Docker
   # ============================================
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
   - apt-get update
-  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
   
   # Agregar usuario al grupo docker
   - usermod -aG docker ${admin_username}
@@ -110,14 +108,13 @@ runcmd:
   # ============================================
   # Crear directorios para Docker Compose
   # ============================================
-  - mkdir -p /home/${admin_username}/otel-stack
   - mkdir -p /home/${admin_username}/otel-stack/otel-collector-config
   - mkdir -p /home/${admin_username}/otel-stack/elasticsearch-data
   - mkdir -p /home/${admin_username}/otel-stack/kibana-data
   
-  # ==============================================
+  # ============================================
   # Crear configuración de OTel Collector
-  # ==============================================
+  # ============================================
   - |
     cat > /home/${admin_username}/otel-stack/otel-collector-config/otel-collector-config.yaml <<'EOF'
     receivers:
@@ -136,6 +133,8 @@ runcmd:
     exporters:
       otlphttp/apm:
         endpoint: http://apm-server:8200
+        tls:
+          insecure: true
       elasticsearch:
         endpoints:
           - http://elasticsearch:9200
@@ -181,34 +180,31 @@ runcmd:
   # ============================================
   - |
     cat > /home/${admin_username}/otel-stack/docker-compose-collector.yaml <<'EOF'
-    version: '3.8'
-
+    version: "3.8"
     services:
       otel-collector:
         image: otel/opentelemetry-collector-contrib:latest
         container_name: otel-collector
-        command: ["--config=/etc/otel-collector-config.yaml"]
+        command: ["--config=/etc/otelcol/config.yaml"]
         volumes:
-          - ./otel-collector-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+          - ./otel-collector-config/otel-collector-config.yaml:/etc/otelcol/config.yaml
         ports:
-          - "4317:4317"   # gRPC
-          - "4318:4318"   # HTTP
+          - "4317:4317"
+          - "4318:4318"
         networks:
           - otel-network
         restart: unless-stopped
-
     networks:
       otel-network:
         driver: bridge
     EOF
   
   # ============================================
-  # Crear docker-compose.yaml para Elasticsearch + Kibana + APM Server
+  # Crear docker-compose.yaml para Elastic Stack
   # ============================================
   - |
     cat > /home/${admin_username}/otel-stack/docker-compose-elastic.yaml <<'EOF'
-    version: '3.8'
-
+    version: "3.8"
     services:
       elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
@@ -216,7 +212,7 @@ runcmd:
         environment:
           - discovery.type=single-node
           - xpack.security.enabled=false
-          - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+          - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
         volumes:
           - ./elasticsearch-data:/usr/share/elasticsearch/data
         ports:
@@ -237,6 +233,7 @@ runcmd:
         environment:
           - output.elasticsearch.hosts=["http://elasticsearch:9200"]
           - apm-server.host=0.0.0.0:8200
+          - apm-server.auth.anonymous.enabled=true
           - apm-server.rum.enabled=true
           - setup.kibana.host=http://kibana:5601
           - setup.template.enabled=true
@@ -288,24 +285,28 @@ runcmd:
     echo "📊 Iniciando Elasticsearch, APM Server y Kibana..."
     docker compose -f docker-compose-elastic.yaml up -d
     
-    # Esperar a que Elasticsearch y APM Server estén listos
-    echo "⏳ Esperando a que Elasticsearch y APM Server estén listos..."
+    # Esperar a que estén listos
+    echo "⏳ Esperando 45 segundos a que Elasticsearch y APM Server estén listos..."
     sleep 45
     
     # Iniciar OTel Collector
     echo "📡 Iniciando OTel Collector..."
     docker compose -f docker-compose-collector.yaml up -d
     
+    echo ""
     echo "✅ Stack iniciado correctamente!"
     echo ""
-    echo "Servicios disponibles:"
-    echo "  - OTel Collector (gRPC): 4317"
-    echo "  - OTel Collector (HTTP): 4318"
-    echo "  - APM Server: 8200"
-    echo "  - Elasticsearch: 9200"
-    echo "  - Kibana: 5601"
+    echo "📊 Servicios disponibles:"
+    echo "  • OTel Collector (gRPC): 4317"
+    echo "  • OTel Collector (HTTP): 4318"
+    echo "  • APM Server: 8200"
+    echo "  • Elasticsearch: 9200"
+    echo "  • Kibana: 5601"
     echo ""
-    echo "Ver logs:"
+    echo "🌐 Acceso web:"
+    echo "  • Kibana: http://localhost:5601"
+    echo ""
+    echo "🔍 Ver logs:"
     echo "  docker compose -f docker-compose-elastic.yaml logs -f"
     echo "  docker compose -f docker-compose-collector.yaml logs -f"
     EOF
@@ -327,10 +328,34 @@ runcmd:
   - chmod +x /home/${admin_username}/otel-stack/stop-all.sh
   
   # ============================================
-  # Crear acceso directo de Kibana en el escritorio
+  # Crear script para verificar estado
   # ============================================
   - |
-    cat > /usr/share/applications/kibana.desktop <<EOF
+    cat > /home/${admin_username}/otel-stack/status.sh <<'EOF'
+    #!/bin/bash
+    echo "📊 Estado del Stack de Observabilidad"
+    echo "======================================"
+    echo ""
+    docker compose -f docker-compose-elastic.yaml ps
+    echo ""
+    docker compose -f docker-compose-collector.yaml ps
+    echo ""
+    echo "🌐 URLs de acceso:"
+    echo "  • Kibana: http://localhost:5601"
+    echo "  • Elasticsearch: http://localhost:9200"
+    echo "  • APM Server: http://localhost:8200"
+    EOF
+  
+  - chmod +x /home/${admin_username}/otel-stack/status.sh
+  
+  # ============================================
+  # Crear accesos directos en el escritorio
+  # ============================================
+  - mkdir -p /home/${admin_username}/Desktop
+  
+  # Kibana
+  - |
+    cat > /home/${admin_username}/Desktop/kibana.desktop <<EOF
     [Desktop Entry]
     Name=Kibana Dashboard
     GenericName=Observability Dashboard
@@ -341,15 +366,9 @@ runcmd:
     Icon=firefox
     Categories=Development;Network;
     EOF
-  
-  # Copiar acceso directo al escritorio del usuario
-  - mkdir -p /home/${admin_username}/Desktop
-  - cp /usr/share/applications/kibana.desktop /home/${admin_username}/Desktop/
   - chmod +x /home/${admin_username}/Desktop/kibana.desktop
   
-  # ============================================
-  # Crear acceso directo de Firefox en el escritorio
-  # ============================================
+  # Firefox
   - |
     cat > /home/${admin_username}/Desktop/firefox.desktop <<EOF
     [Desktop Entry]
@@ -361,33 +380,11 @@ runcmd:
     Type=Application
     Icon=firefox
     Categories=Network;WebBrowser;
-    MimeType=text/html;text/xml;application/xhtml+xml;
     StartupNotify=true
     EOF
-  
   - chmod +x /home/${admin_username}/Desktop/firefox.desktop
   
-  # ============================================
-  # Crear acceso directo para Docker Logs
-  # ============================================
-  - |
-    cat > /home/${admin_username}/Desktop/docker-logs.desktop <<EOF
-    [Desktop Entry]
-    Name=Docker Logs
-    GenericName=View Docker Logs
-    Comment=Open terminal with docker logs
-    Exec=xfce4-terminal -e "bash -c 'cd ~/otel-stack && docker compose -f docker-compose-elastic.yaml logs -f; exec bash'"
-    Terminal=false
-    Type=Application
-    Icon=utilities-terminal
-    Categories=System;
-    EOF
-  
-  - chmod +x /home/${admin_username}/Desktop/docker-logs.desktop
-  
-  # ============================================
-  # Crear acceso directo para Terminal
-  # ============================================
+  # Terminal
   - |
     cat > /home/${admin_username}/Desktop/terminal.desktop <<EOF
     [Desktop Entry]
@@ -400,8 +397,76 @@ runcmd:
     Icon=utilities-terminal
     Categories=System;TerminalEmulator;
     EOF
-  
   - chmod +x /home/${admin_username}/Desktop/terminal.desktop
+  
+  # Docker Status
+  - |
+    cat > /home/${admin_username}/Desktop/docker-status.desktop <<EOF
+    [Desktop Entry]
+    Name=Docker Status
+    GenericName=View Docker Status
+    Comment=Check Docker containers status
+    Exec=xfce4-terminal -e "bash -c 'cd ~/otel-stack && ./status.sh; echo; echo Presiona Enter para cerrar; read'"
+    Terminal=false
+    Type=Application
+    Icon=utilities-system-monitor
+    Categories=System;
+    EOF
+  - chmod +x /home/${admin_username}/Desktop/docker-status.desktop
+  
+  # ============================================
+  # Crear README en el escritorio
+  # ============================================
+  - |
+    cat > /home/${admin_username}/Desktop/README.txt <<EOF
+    ========================================
+    VM Observability Stack - Guía Rápida
+    ========================================
+    
+    🖥️  CONEXIÓN RDP:
+       IP: <VM_PUBLIC_IP>
+       Puerto: 3389
+       Usuario: ${admin_username}
+       Contraseña: (configurada en Terraform)
+    
+    📁 Directorio: ~/otel-stack
+    
+    🚀 COMANDOS:
+       ./start-all.sh   - Iniciar stack completo
+       ./stop-all.sh    - Detener stack
+       ./status.sh      - Ver estado actual
+    
+    📊 SERVICIOS:
+       • OTel Collector gRPC: 4317
+       • OTel Collector HTTP: 4318
+       • APM Server: 8200
+       • Elasticsearch: 9200
+       • Kibana: 5601
+    
+    🌐 ACCESO WEB:
+       • Kibana: http://localhost:5601
+       • Elasticsearch: http://localhost:9200
+       • Desde fuera: http://<IP_PUBLICA>:5601
+    
+    📡 CONFIGURACIÓN BACKEND:
+       OTEL_EXPORTER_OTLP_ENDPOINT=http://<IP_PRIVADA>:4318
+       OTEL_SERVICE_NAME=spring-boot-backend
+    
+    🐳 DOCKER:
+       docker ps                 # Ver contenedores
+       docker compose ps         # Ver servicios
+       docker logs <nombre>      # Ver logs
+       docker stats              # Uso de recursos
+    
+    📈 APM EN KIBANA:
+       1. Abre Kibana (doble click en icono)
+       2. Ve a "Observability" → "APM"
+       3. Verás trazas de tus aplicaciones
+    
+    ========================================
+    EOF
+  
+  - chown ${admin_username}:${admin_username} /home/${admin_username}/Desktop/README.txt
   
   # ============================================
   # Ajustar permisos
@@ -411,69 +476,8 @@ runcmd:
   - chmod -R 755 /home/${admin_username}/otel-stack
   
   # ============================================
-  # Crear archivo README en el escritorio
-  # ============================================
-  - |
-    cat > /home/${admin_username}/Desktop/README.txt <<EOF
-    ========================================
-    VM Observability Stack - Información
-    ========================================
-    
-    🖥️  ESCRITORIO REMOTO (RDP):
-       Puerto: 3389
-       Usuario: ${admin_username}
-       Contraseña: (la que configuraste)
-    
-    📁 Directorio principal: ~/otel-stack
-    
-    🚀 Iniciar todo el stack:
-       cd ~/otel-stack
-       ./start-all.sh
-    
-    🛑 Detener todo el stack:
-       cd ~/otel-stack
-       ./stop-all.sh
-    
-    📊 Servicios disponibles:
-       - OTel Collector (gRPC): puerto 4317
-       - OTel Collector (HTTP): puerto 4318
-       - APM Server: puerto 8200
-       - Elasticsearch: puerto 9200
-       - Kibana: puerto 5601
-    
-    🔍 Ver logs:
-       docker compose -f docker-compose-elastic.yaml logs -f
-       docker compose -f docker-compose-collector.yaml logs -f
-    
-    🌐 Acceder a Kibana:
-       - Desde el escritorio: doble click en "Kibana Dashboard"
-       - Desde navegador: http://localhost:5601
-       - Desde fuera: http://<IP_PUBLICA>:5601
-    
-    📡 Endpoints para App Services:
-       - OTel gRPC (interno): http://<IP_PRIVADA>:4317
-       - OTel HTTP (interno): http://<IP_PRIVADA>:4318
-       - APM Server (interno): http://<IP_PRIVADA>:8200
-    
-    🐳 Comandos útiles de Docker:
-       docker ps                    # Ver contenedores
-       docker compose ps            # Ver servicios
-       docker logs <container>      # Ver logs de un contenedor
-       docker stats                 # Ver uso de recursos
-    
-    📈 APM en Kibana:
-       1. Abre Kibana: http://localhost:5601
-       2. Ve a "Observability" → "APM"
-       3. Verás las trazas de tus aplicaciones
-    
-    ========================================
-    EOF
-  
-  - chown ${admin_username}:${admin_username} /home/${admin_username}/Desktop/README.txt
-  
-  # ============================================
   # Iniciar el stack automáticamente
   # ============================================
   - cd /home/${admin_username}/otel-stack && sudo -u ${admin_username} ./start-all.sh
 
-final_message: "VM Observability Stack con Escritorio XFCE lista! Docker, OTel Collector, Elasticsearch, Kibana y RDP configurados."
+final_message: "✅ VM Observability Stack lista! Docker, OTel, Elastic APM, Kibana y Escritorio XFCE configurados."
