@@ -1,0 +1,71 @@
+cd ~/otel-stack && \
+docker compose -f docker-compose-elastic.yaml down && \
+docker compose -f docker-compose-collector.yaml down && \
+docker rm -f elasticsearch apm-server kibana otel-collector 2>/dev/null || true && \
+cat > docker-compose-elastic.yaml << 'EOF'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    volumes:
+      - ./elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - otel-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.11.0
+    container_name: apm-server
+    user: root
+    command: >
+      apm-server -e
+        -E output.elasticsearch.hosts=["http://elasticsearch:9200"]
+        -E apm-server.host=0.0.0.0:8200
+        -E apm-server.auth.anonymous.enabled=true
+        -E apm-server.rum.enabled=true
+    ports:
+      - "8200:8200"
+    networks:
+      - otel-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.apm.enabled=true
+      - xpack.apm.ui.enabled=true
+      - SERVER_PUBLICBASEURL=http://localhost:5601
+    ports:
+      - "5601:5601"
+    networks:
+      - otel-network
+    depends_on:
+      - elasticsearch
+      - apm-server
+    restart: unless-stopped
+
+networks:
+  otel-network:
+    external: true
+    name: otel-stack_otel-network
+EOF
+./start-all.sh && \
+sleep 90 && \
+docker ps
