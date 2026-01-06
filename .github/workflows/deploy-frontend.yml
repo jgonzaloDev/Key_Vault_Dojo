@@ -26,7 +26,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: '22.x'
           cache: 'npm'
 
       - name: Create .env file
@@ -98,7 +98,7 @@ jobs:
         with:
           app-name: ${{ secrets.TF_VAR_WEBAPP_FRONTEND_NAME }}
           slot-name: 'Production'
-          package: app-build/dist
+          package: app-build
 
       - name: Verify Deployment
         run: |
