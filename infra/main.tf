@@ -303,7 +303,7 @@ resource "azurerm_linux_web_app" "frontend" {
   }
 
   app_settings = {
-    "WEBSITE_NODE_DEFAULT_VERSION" = "18-lts"
+    "WEBSITE_NODE_DEFAULT_VERSION" = "22-lts"
     "BACKEND_URL"                  = "https://${var.webapp_backend_name}.azurewebsites.net"
   }
 
