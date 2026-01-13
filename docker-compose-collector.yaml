@@ -1,0 +1,71 @@
+cd ~/otel-stack && \
+# Crear red externa si no existe
+docker network inspect otel-stack_otel-network >/dev/null 2>&1 || \
+docker network create otel-stack_otel-network && \
+
+# Limpiar contenedores previos
+docker compose -f docker-compose-collector.yaml down && \
+docker rm -f otel-collector 2>/dev/null || true && \
+
+# Crear archivo de configuración del Collector
+cat > otel-collector-config.yaml << 'EOF'
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  otlphttp/apm:
+    endpoint: http://apm-server:8200
+  elasticsearch:
+    endpoints: ["http://elasticsearch:9200"]
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/apm]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [elasticsearch]
+EOF
+
+# Crear docker-compose del Collector
+cat > docker-compose-collector.yaml << 'EOF'
+version: '3'
+
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # gRPC
+      - "4318:4318"   # HTTP
+    networks:
+      - otel-network
+    depends_on:
+      - elasticsearch
+      - apm-server
+    restart: unless-stopped
+
+networks:
+  otel-network:
+    external: true
+    name: otel-stack_otel-network
+EOF
+
+# Levantar Collector
+docker compose -f docker-compose-collector.yaml up -d && \
+sleep 20 && \
+docker ps
