@@ -1,0 +1,29 @@
+PASOS ANTES DE EJECUTAR LOS DOS DOCKER :
+PRIMERO CREAR LAS CARPETAS:
+---------------------------------
+mkdir -p ~/otel-stack
+cd ~/otel-stack
+---------------------------------
+SEGUNDO PASO INSTALAR DOCKER
+------------------------------------------------
+sudo apt update && sudo apt install -y docker.io
+------------------------------------------------
+Luego habilita y arranca el servicio:
+------------------------------------------------
+sudo systemctl enable docker
+sudo systemctl start docker
+-------------------------------------------------
+PERMISO PARA USAR DOCKER 
+-----------------------------
+sudo usermod -aG docker $USER
+-----------------------------
+Luego reinicia tu sesión (cierra y vuelve a entrar al terminal) o ejecuta:
+----------------------------
+newgrp docker
+----------------------------
+Verifica que ya puedes usar Docker:
+-----------
+docker ps
+-----------
+LUEGO EJECUTAMOS EL PRIMER YAMEL ::::docker-compose-elastic:::
+LUEGO EJECUTAMOS EL SEGUNDO YAMEL :::docker-compose-collector::

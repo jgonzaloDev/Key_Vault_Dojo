@@ -1,11 +1,23 @@
-cd ~/otel-stack && \
-# Crear red externa si no existe
-docker network inspect otel-stack_otel-network >/dev/null 2>&1 || \
-docker network create otel-stack_otel-network && \
+#!/bin/bash
+set -e
 
-# Limpiar contenedores previos
-docker compose -f docker-compose-collector.yaml down && \
-docker rm -f otel-collector 2>/dev/null || true && \
+# Detectar si se usa 'docker compose' o 'docker-compose'
+if docker compose version >/dev/null 2>&1; then
+    DC="docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+    DC="docker-compose"
+else
+    echo "❌ No se encontró Docker Compose. Instálalo con: sudo apt install docker-compose"
+    exit 1
+fi
+
+# Ir a carpeta de trabajo
+mkdir -p ~/otel-stack
+cd ~/otel-stack
+
+# Limpiar contenedor previo
+$DC -f docker-compose-collector.yaml down || true
+docker rm -f otel-collector 2>/dev/null || true
 
 # Crear archivo de configuración del Collector
 cat > otel-collector-config.yaml << 'EOF'
@@ -38,10 +50,9 @@ service:
       exporters: [elasticsearch]
 EOF
 
-# Crear docker-compose del Collector
+# Crear docker-compose del Collector (sin depends_on)
 cat > docker-compose-collector.yaml << 'EOF'
 version: '3'
-
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
@@ -54,9 +65,6 @@ services:
       - "4318:4318"   # HTTP
     networks:
       - otel-network
-    depends_on:
-      - elasticsearch
-      - apm-server
     restart: unless-stopped
 
 networks:
@@ -66,6 +74,9 @@ networks:
 EOF
 
 # Levantar Collector
-docker compose -f docker-compose-collector.yaml up -d && \
-sleep 20 && \
+echo "🚀 Levantando Otel Collector..."
+$DC -f docker-compose-collector.yaml up -d
+
+sleep 20
 docker ps
+echo "✅ Otel Collector levantado. Escucha en puertos 4317 (gRPC) y 4318 (HTTP). Exporta trazas al APM Server y logs a Elasticsearch."
