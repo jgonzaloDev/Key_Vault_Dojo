@@ -350,7 +350,7 @@ resource "azurerm_linux_web_app" "backend" {
     "SQL_DATABASE"                = azurerm_mssql_database.db.name
     "SQL_USER"                    = var.sql_admin_login
     "SQL_PASSWORD"                = var.sql_admin_password
-    "OTEL_EXPORTER_OTLP_ENDPOINT" = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4318"
+    "OTEL_EXPORTER_OTLP_ENDPOINT" = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4317"
 
     #####################################
     # 🗄️ Base de datos SQL Server
@@ -372,7 +372,7 @@ resource "azurerm_linux_web_app" "backend" {
     "OTEL_TRACES_EXPORTER"        = "otlp"
     "OTEL_SERVICE_NAME"           = "spring-boot-backend"
     "OTEL_LOGS_EXPORTER"          =  "otlp"
-    "OTEL_EXPORTER_OTLP_PROTOCOL" =  "http/protobuf"
+    "OTEL_EXPORTER_OTLP_PROTOCOL" =  "grpc"
 
     #####################################
     # 🌐 Aplicación Spring Boot
