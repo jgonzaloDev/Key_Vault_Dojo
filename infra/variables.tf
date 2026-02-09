@@ -1,36 +1,50 @@
+###############################################################
 # Azure info
+###############################################################
+
 variable "subscription_id" {
-  type = string
+  type        = string
+  description = "Azure Subscription ID"
 }
 
 variable "tenant_id" {
-  type = string
+  type        = string
+  description = "Azure Tenant ID"
 }
 
 variable "resource_group_name" {
-  type = string
+  type        = string
+  description = "Nombre del Resource Group"
 }
 
 variable "location" {
-  type = string
+  type        = string
+  description = "Ubicación de los recursos de Azure"
 }
 
+###############################################################
 # SQL Server
+###############################################################
+
 variable "sql_server_name" {
-  type = string
+  type        = string
+  description = "Nombre del SQL Server"
 }
 
 variable "sql_database_name" {
-  type = string
+  type        = string
+  description = "Nombre de la base de datos SQL"
 }
 
 variable "sql_admin_login" {
-  type = string
+  type        = string
+  description = "Usuario administrador de SQL Server"
 }
 
 variable "sql_admin_password" {
-  type      = string
-  sensitive = true
+  type        = string
+  description = "Contraseña del administrador de SQL Server"
+  sensitive   = true
 }
 
 ###############################################################
@@ -65,6 +79,12 @@ variable "subnet_privateendpoint_cidr" {
   type        = string
   description = "CIDR para subnet de Private Endpoints"
   default     = "10.0.3.0/24"
+}
+
+variable "subnet_appgw_cidr" {
+  type        = string
+  description = "CIDR para subnet del Application Gateway"
+  default     = "10.0.4.0/24"
 }
 
 ###############################################################
@@ -113,4 +133,26 @@ variable "webapp_frontend_name" {
 variable "webapp_backend_name" {
   type        = string
   description = "Nombre del App Service Backend"
+}
+
+###############################################################
+# Variables de Application Gateway
+###############################################################
+
+variable "appgw_name" {
+  type        = string
+  description = "Nombre del Application Gateway"
+  default     = "appgw-dojo"
+}
+
+variable "cert_data" {
+  type        = string
+  description = "Contenido del certificado PFX en base64 (viene de GitHub Secrets)"
+  sensitive   = true
+}
+
+variable "cert_password" {
+  type        = string
+  description = "Contraseña del certificado PFX (viene de GitHub Secrets)"
+  sensitive   = true
 }
