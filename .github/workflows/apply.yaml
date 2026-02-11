@@ -36,24 +36,38 @@ jobs:
         working-directory: infra
         run: terraform apply -auto-approve
         env:
+          # Azure Provider
           TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           TF_VAR_tenant_id: ${{ secrets.AZURE_TENANT_ID }}
           TF_VAR_location: ${{ secrets.TF_VAR_LOCATION }}
           TF_VAR_resource_group_name: ${{ secrets.TF_VAR_RESOURCE_GROUP_NAME }}
 
+          # SQL Server
           TF_VAR_sql_server_name: ${{ secrets.TF_VAR_SQL_SERVER_NAME }}
           TF_VAR_sql_database_name: ${{ secrets.TF_VAR_SQL_DATABASE_NAME }}
           TF_VAR_sql_admin_login: ${{ secrets.TF_VAR_SQL_ADMIN_LOGIN }}
           TF_VAR_sql_admin_password: ${{ secrets.TF_VAR_SQL_ADMIN_PASSWORD }}
+          
+          # Virtual Network
           TF_VAR_vnet_name: ${{ secrets.TF_VAR_VNET_NAME }}
           TF_VAR_address_space: ${{ secrets.TF_VAR_ADDRESS_SPACE }}
           TF_VAR_subnet_integration_cidr: ${{ secrets.TF_VAR_SUBNET_INTEGRATION_CIDR }}
           TF_VAR_subnet_vm_cidr: ${{ secrets.TF_VAR_SUBNET_VM_CIDR }}
           TF_VAR_subnet_privateendpoint_cidr: ${{ secrets.TF_VAR_SUBNET_PRIVATEENDPOINT_CIDR }}
+          TF_VAR_subnet_appgw_cidr: ${{ secrets.TF_VAR_SUBNET_APPGW_CIDR }}
+          
+          # Virtual Machine
           TF_VAR_vm_name: ${{ secrets.TF_VAR_VM_NAME }}
           TF_VAR_vm_size: ${{ secrets.TF_VAR_VM_SIZE }}
           TF_VAR_vm_admin_username: ${{ secrets.TF_VAR_VM_ADMIN_USERNAME }}
           TF_VAR_vm_admin_password: ${{ secrets.TF_VAR_VM_ADMIN_PASSWORD }}
+          
+          # App Services
           TF_VAR_app_service_plan_name: ${{ secrets.TF_VAR_APP_SERVICE_PLAN_NAME }}
           TF_VAR_webapp_frontend_name: ${{ secrets.TF_VAR_WEBAPP_FRONTEND_NAME }}
           TF_VAR_webapp_backend_name: ${{ secrets.TF_VAR_WEBAPP_BACKEND_NAME }}
+          
+          # Application Gateway
+          TF_VAR_appgw_name: ${{ secrets.TF_VAR_APPGW_NAME }}
+          TF_VAR_cert_data: ${{ secrets.TF_VAR_CERT_DATA }}
+          TF_VAR_cert_password: ${{ secrets.TF_VAR_CERT_PASSWORD }}
