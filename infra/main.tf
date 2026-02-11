@@ -543,6 +543,10 @@ resource "azurerm_application_gateway" "appgw" {
     name      = "gateway-ip-config"
     subnet_id = azurerm_subnet.appgw_subnet.id
   }
+  ssl_policy {
+    policy_type = "Predefined"
+    policy_name = "AppGwSslPolicy20220101"
+  }
 
   # Puerto HTTP (80) - para redirección
   frontend_port {
