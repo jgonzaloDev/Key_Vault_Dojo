@@ -342,8 +342,8 @@ resource "azurerm_linux_web_app" "backend" {
       java_version        = "17"
     }
     
-    # Comando de inicio personalizado con OpenTelemetry agent
-    startup_command = "java -javaagent:/home/site/wwwroot/otel/opentelemetry-javaagent.jar -jar /home/site/wwwroot/app.jar"
+    # Esto llena la caja "Startup Command" del portal de Azure
+    app_command_line = "java -javaagent:/home/site/wwwroot/otel/opentelemetry-javaagent.jar -jar /home/site/wwwroot/app.jar"
     
     # CORS para permitir que el frontend acceda al backend
     cors {
