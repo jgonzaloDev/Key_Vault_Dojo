@@ -513,19 +513,16 @@ resource "azurerm_public_ip" "appgw_pip" {
 ###############################################################
 
 locals {
-  backend_pool_frontend_name      = "backend-pool-frontend"
-  backend_pool_backend_name       = "backend-pool-backend"
-  frontend_port_name_http         = "frontend-port-http"
-  frontend_port_name_https        = "frontend-port-https"
-  frontend_ip_configuration_name  = "frontend-ip"
-  http_setting_frontend_name      = "http-setting-frontend"
-  http_setting_backend_name       = "http-setting-backend"
-  listener_name_http              = "http-listener"
-  listener_name_https             = "https-listener"
-  request_routing_rule_name_http  = "routing-rule-http"
-  request_routing_rule_name_https = "routing-rule-https"
-  redirect_configuration_name     = "http-to-https-redirect"
-  ssl_certificate_name            = "cert-app-dojo"
+  backend_pool_frontend_name     = "pool-frontend"
+  backend_pool_backend_name      = "pool-backend"
+  frontend_port_name_https       = "frontend-port-https"
+  frontend_ip_configuration_name = "frontend-ip"
+  http_setting_frontend_name     = "setting-frontend"
+  http_setting_backend_name      = "setting-backend"
+  listener_name_https            = "https-listener"
+  request_routing_rule_name      = "routing-rule-https"
+  ssl_certificate_name           = "cert-app-dojo"
+  url_path_map_name              = "url-path-map"
 }
 
 resource "azurerm_application_gateway" "appgw" {
@@ -543,18 +540,13 @@ resource "azurerm_application_gateway" "appgw" {
     name      = "gateway-ip-config"
     subnet_id = azurerm_subnet.appgw_subnet.id
   }
+
   ssl_policy {
     policy_type = "Predefined"
     policy_name = "AppGwSslPolicy20220101"
   }
 
-  # Puerto HTTP (80) - para redirección
-  frontend_port {
-    name = local.frontend_port_name_http
-    port = 80
-  }
-
-  # Puerto HTTPS (443)
+  # Puerto HTTPS (443) - ÚNICO
   frontend_port {
     name = local.frontend_port_name_https
     port = 443
@@ -567,7 +559,7 @@ resource "azurerm_application_gateway" "appgw" {
 
   # Certificado SSL/TLS (PFX)
   ssl_certificate {
-    name     = "cert-app-dojo"
+    name     = local.ssl_certificate_name
     data     = var.cert_data
     password = var.cert_password
   }
@@ -602,7 +594,7 @@ resource "azurerm_application_gateway" "appgw" {
   probe {
     name                                      = "health-probe-backend"
     protocol                                  = "Https"
-    path                                      = "/actuator/health"
+    path                                      = "/api/actuator/health"
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
@@ -636,15 +628,7 @@ resource "azurerm_application_gateway" "appgw" {
     probe_name                          = "health-probe-backend"
   }
 
-  # Listener HTTP (para redirección a HTTPS)
-  http_listener {
-    name                           = local.listener_name_http
-    frontend_ip_configuration_name = local.frontend_ip_configuration_name
-    frontend_port_name             = local.frontend_port_name_http
-    protocol                       = "Http"
-  }
-
-  # Listener HTTPS (con certificado SSL)
+  # Listener HTTPS con certificado SSL
   http_listener {
     name                           = local.listener_name_https
     frontend_ip_configuration_name = local.frontend_ip_configuration_name
@@ -653,32 +637,36 @@ resource "azurerm_application_gateway" "appgw" {
     ssl_certificate_name           = local.ssl_certificate_name
   }
 
-  # Configuración de redirección HTTP -> HTTPS
-  redirect_configuration {
-    name                 = local.redirect_configuration_name
-    redirect_type        = "Permanent"
-    target_listener_name = local.listener_name_https
-    include_path         = true
-    include_query_string = true
+  # URL Path Map - Enrutamiento basado en rutas
+  url_path_map {
+    name                               = local.url_path_map_name
+    default_backend_address_pool_name  = local.backend_pool_frontend_name
+    default_backend_http_settings_name = local.http_setting_frontend_name
+
+    # Regla para Frontend - /web/*
+    path_rule {
+      name                       = "frontend-rule"
+      paths                      = ["/web/*"]
+      backend_address_pool_name  = local.backend_pool_frontend_name
+      backend_http_settings_name = local.http_setting_frontend_name
+    }
+
+    # Regla para Backend - /api/*
+    path_rule {
+      name                       = "backend-rule"
+      paths                      = ["/api/*"]
+      backend_address_pool_name  = local.backend_pool_backend_name
+      backend_http_settings_name = local.http_setting_backend_name
+    }
   }
 
-  # Regla: Redirigir HTTP a HTTPS
+  # Regla de enrutamiento HTTPS con path-based routing
   request_routing_rule {
-    name                        = local.request_routing_rule_name_http
-    rule_type                   = "Basic"
-    http_listener_name          = local.listener_name_http
-    redirect_configuration_name = local.redirect_configuration_name
-    priority                    = 100
-  }
-
-  # Regla: HTTPS al Frontend
-  request_routing_rule {
-    name                       = local.request_routing_rule_name_https
-    rule_type                  = "Basic"
-    http_listener_name         = local.listener_name_https
-    backend_address_pool_name  = local.backend_pool_frontend_name
-    backend_http_settings_name = local.http_setting_frontend_name
-    priority                   = 200
+    name              = local.request_routing_rule_name
+    rule_type         = "PathBasedRouting"
+    http_listener_name = local.listener_name_https
+    url_path_map_name = local.url_path_map_name
+    priority          = 100
   }
 
   depends_on = [
