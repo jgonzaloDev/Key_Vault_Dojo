@@ -546,7 +546,7 @@ resource "azurerm_application_gateway" "appgw" {
     policy_name = "AppGwSslPolicy20220101"
   }
 
-  # Puerto HTTPS (443) - ÚNICO
+  # Puerto HTTPS (443)
   frontend_port {
     name = local.frontend_port_name_https
     port = 443
@@ -592,9 +592,9 @@ resource "azurerm_application_gateway" "appgw" {
 
   # Health Probe - Backend
   probe {
-    name                                      = "health-probe-backend"
+    name                                      = "probe-backend"
     protocol                                  = "Https"
-    path                                      = "/api/actuator/health"
+    path                                      = "/customer"
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
@@ -625,7 +625,7 @@ resource "azurerm_application_gateway" "appgw" {
     request_timeout                     = 60
     pick_host_name_from_backend_address = false
     host_name                           = azurerm_linux_web_app.backend.default_hostname
-    probe_name                          = "health-probe-backend"
+    probe_name                          = "probe-backend"
   }
 
   # Listener HTTPS con certificado SSL
@@ -651,10 +651,18 @@ resource "azurerm_application_gateway" "appgw" {
       backend_http_settings_name = local.http_setting_frontend_name
     }
 
-    # Regla para Backend - /api/*
+    # Regla para Backend - /customer*
     path_rule {
       name                       = "backend-rule"
-      paths                      = ["/api/*"]
+      paths                      = ["/customer*"]
+      backend_address_pool_name  = local.backend_pool_backend_name
+      backend_http_settings_name = local.http_setting_backend_name
+    }
+
+    # Regla para Backend - /order*
+    path_rule {
+      name                       = "backend-rule2"
+      paths                      = ["/order*"]
       backend_address_pool_name  = local.backend_pool_backend_name
       backend_http_settings_name = local.http_setting_backend_name
     }
