@@ -50,43 +50,49 @@ jobs:
         working-directory: ./backend
         run: |
           echo "🔍 Buscando JAR ejecutable..."
+          echo "📦 Listando todos los JARs generados:"
+          find . -path "*/target/*.jar" ! -name "*-original.jar" -type f -exec ls -lh {} \;
+          echo ""
           
+          # Buscar el JAR más grande (que debería ser la aplicación principal)
           MAIN_JAR=$(find . -path "*/target/*.jar" \
             ! -name "*-original.jar" \
             ! -name "*-sources.jar" \
             ! -name "*-javadoc.jar" \
-            -type f \
-            -exec sh -c 'jar -tf {} | grep -q "org/springframework/boot/loader/JarLauncher" && echo {}' \; \
-            | head -n 1)
+            -type f -exec ls -s {} \; | sort -rn | head -n 1 | awk '{print $2}')
           
           if [ -z "$MAIN_JAR" ]; then
-            MAIN_JAR=$(find . -path "*/target/*.jar" \
-              ! -name "*-original.jar" \
-              -type f | head -n 1)
+            echo "❌ No se encontró ningún JAR ejecutable"
+            exit 1
+          fi
+          
+          # Verificar tamaño
+          SIZE=$(stat -c%s "$MAIN_JAR" 2>/dev/null || stat -f%z "$MAIN_JAR")
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          
+          echo "✅ JAR ejecutable identificado: $MAIN_JAR"
+          echo "📏 Tamaño: ${SIZE_MB}MB"
+          ls -lh "$MAIN_JAR"
+          
+          if [ "$SIZE_MB" -lt 5 ]; then
+            echo "⚠️  ADVERTENCIA: El JAR parece pequeño (${SIZE_MB}MB)"
+            echo "Asegúrate de que sea el JAR correcto"
           fi
           
           echo "JAR_FILE=$MAIN_JAR" >> $GITHUB_OUTPUT
-          echo "✅ JAR ejecutable: $MAIN_JAR"
-          ls -lh "$MAIN_JAR"
 
-      # =============================
-      # Preparar estructura con el agente
-      # =============================
       - name: Prepare deployment package
         working-directory: ./backend
         run: |
           echo "📦 Preparando paquete de deployment..."
           
-          # Crear estructura de directorios
           mkdir -p deploy/otel
           
-          # Copiar el JAR principal
           echo "📦 Copiando JAR principal..."
           cp ${{ steps.jar.outputs.JAR_FILE }} deploy/app.jar
           echo "✅ JAR principal copiado:"
           ls -lh deploy/app.jar
           
-          # Copiar el agente de OpenTelemetry desde la ubicación exacta
           echo "📦 Copiando agente OpenTelemetry..."
           if [ -f "app/opentelemetry-javaagent.jar" ]; then
             cp app/opentelemetry-javaagent.jar deploy/otel/opentelemetry-javaagent.jar
@@ -119,8 +125,8 @@ jobs:
           APP_URL="https://${{ secrets.TF_VAR_WEBAPP_BACKEND_NAME }}.azurewebsites.net"
           echo "📍 URL: $APP_URL"
           
-          echo "⏳ Esperando 45 segundos para que la app inicie..."
-          sleep 45
+          echo "⏳ Esperando 60 segundos para que la app inicie..."
+          sleep 60
           
           echo "🧪 Probando endpoint /customer..."
           if curl -f -s "$APP_URL/customer" > /dev/null 2>&1; then
