@@ -342,8 +342,8 @@ resource "azurerm_linux_web_app" "backend" {
       java_version        = "17"
     }
     
-    # Esto llena la caja "Startup Command" del portal de Azure
-    app_command_line = "java -javaagent:/home/site/wwwroot/otel/opentelemetry-javaagent.jar -jar /home/site/wwwroot/app.jar"
+    # ⭐ NO configurar app_command_line - usar JAVA_TOOL_OPTIONS en su lugar
+    # Azure App Service usará: java $JAVA_TOOL_OPTIONS -jar app.jar
     
     # CORS para permitir que el frontend acceda al backend
     cors {
@@ -356,53 +356,54 @@ resource "azurerm_linux_web_app" "backend" {
   }
 
   app_settings = {
-    "SQL_SERVER"                  = azurerm_mssql_server.sql.fully_qualified_domain_name
-    "SQL_DATABASE"                = azurerm_mssql_database.db.name
-    "SQL_USER"                    = var.sql_admin_login
-    "SQL_PASSWORD"                = var.sql_admin_password
-    "OTEL_EXPORTER_OTLP_ENDPOINT" = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4317"
-
     #####################################
     # 🗄️ Base de datos SQL Server
     #####################################
-    "SPRING_DATASOURCE_DRIVER_CLASS_NAME" = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
-    "SPRING_DATASOURCE_URL"               = "jdbc:sqlserver://${azurerm_mssql_server.sql.fully_qualified_domain_name}:1433;databaseName=${azurerm_mssql_database.db.name};encrypt=true;trustServerCertificate=false;loginTimeout=30;"
-    "SPRING_DATASOURCE_USERNAME"          = var.sql_admin_login
-    "SPRING_DATASOURCE_PASSWORD"          = var.sql_admin_password
+    "SQL_SERVER"                              = azurerm_mssql_server.sql.fully_qualified_domain_name
+    "SQL_DATABASE"                            = azurerm_mssql_database.db.name
+    "SQL_USER"                                = var.sql_admin_login
+    "SQL_PASSWORD"                            = var.sql_admin_password
+    "SPRING_DATASOURCE_DRIVER_CLASS_NAME"     = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+    "SPRING_DATASOURCE_URL"                   = "jdbc:sqlserver://${azurerm_mssql_server.sql.fully_qualified_domain_name}:1433;databaseName=${azurerm_mssql_database.db.name};encrypt=true;trustServerCertificate=false;loginTimeout=30;"
+    "SPRING_DATASOURCE_USERNAME"              = var.sql_admin_login
+    "SPRING_DATASOURCE_PASSWORD"              = var.sql_admin_password
 
     #####################################
-    # 🔍 Application Insights
+    # 🔍 Application Insights - DESHABILITADO
     #####################################
-    "ApplicationInsightsAgent_EXTENSION_VERSION" = "~3"
+    "APPLICATIONINSIGHTS_ENABLED"             = "false"
+    "ApplicationInsightsAgent_EXTENSION_VERSION" = "disabled"
 
     #####################################
-    # 📊 OpenTelemetry
+    # 📊 OpenTelemetry - Agente JAR
     #####################################
-    "OTEL_METRICS_EXPORTER"       = "otlp"
-    "OTEL_TRACES_EXPORTER"        = "otlp"
-    "OTEL_SERVICE_NAME"           = "spring-boot-backend"
-    "OTEL_LOGS_EXPORTER"          = "otlp"
-    "OTEL_EXPORTER_OTLP_PROTOCOL" = "grpc"
+    "JAVA_TOOL_OPTIONS"                       = "-javaagent:/home/site/wwwroot/otel/opentelemetry-javaagent.jar"
+    "OTEL_SERVICE_NAME"                       = "spring-boot-backend"
+    "OTEL_EXPORTER_OTLP_ENDPOINT"             = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4317"
+    "OTEL_EXPORTER_OTLP_PROTOCOL"             = "grpc"
+    "OTEL_TRACES_EXPORTER"                    = "otlp"
+    "OTEL_METRICS_EXPORTER"                   = "otlp"
+    "OTEL_LOGS_EXPORTER"                      = "otlp"
 
     #####################################
     # 🌐 Aplicación Spring Boot
     #####################################
-    "SERVER_PORT"             = "8080"
-    "SPRING_APPLICATION_NAME" = "app"
-    "SPRING_PROFILES_ACTIVE"  = "production"
+    "SERVER_PORT"                             = "8080"
+    "SPRING_APPLICATION_NAME"                 = "app"
+    "SPRING_PROFILES_ACTIVE"                  = "production"
 
     #####################################
     # 🧩 JPA / Hibernate
     #####################################
-    "SPRING_JPA_HIBERNATE_DDL_AUTO"            = "create-drop"
-    "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT"  = "org.hibernate.dialect.SQLServerDialect"
-    "SPRING_JPA_SHOW_SQL"                      = "false"
+    "SPRING_JPA_HIBERNATE_DDL_AUTO"           = "create-drop"
+    "SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT" = "org.hibernate.dialect.SQLServerDialect"
+    "SPRING_JPA_SHOW_SQL"                     = "false"
 
     #####################################
     # 🔍 Elasticsearch (deshabilitado)
     #####################################
-    "ELASTICSEARCH_ENABLED" = "false"
-    "ELASTICSEARCH_PORT"    = "9200"
+    "ELASTICSEARCH_ENABLED"                   = "false"
+    "ELASTICSEARCH_PORT"                      = "9200"
   }
 
   identity {
