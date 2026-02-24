@@ -66,10 +66,11 @@ jobs:
           fi
           
           echo "JAR_FILE=$MAIN_JAR" >> $GITHUB_OUTPUT
-          echo "✅ JAR: $MAIN_JAR"
+          echo "✅ JAR ejecutable: $MAIN_JAR"
+          ls -lh "$MAIN_JAR"
 
       # =============================
-      # NUEVO: Preparar estructura con el agente
+      # Preparar estructura con el agente
       # =============================
       - name: Prepare deployment package
         working-directory: ./backend
@@ -80,24 +81,32 @@ jobs:
           mkdir -p deploy/otel
           
           # Copiar el JAR principal
+          echo "📦 Copiando JAR principal..."
           cp ${{ steps.jar.outputs.JAR_FILE }} deploy/app.jar
+          echo "✅ JAR principal copiado:"
+          ls -lh deploy/app.jar
           
-          # Copiar el agente de OpenTelemetry
+          # Copiar el agente de OpenTelemetry desde la ubicación exacta
+          echo "📦 Copiando agente OpenTelemetry..."
           if [ -f "app/opentelemetry-javaagent.jar" ]; then
             cp app/opentelemetry-javaagent.jar deploy/otel/opentelemetry-javaagent.jar
-            echo "✅ Agente OpenTelemetry copiado"
+            echo "✅ Agente OpenTelemetry copiado:"
+            ls -lh deploy/otel/opentelemetry-javaagent.jar
           else
-            echo "❌ No se encontró el agente de OpenTelemetry"
+            echo "❌ ERROR: No se encontró app/opentelemetry-javaagent.jar"
+            echo "📂 Contenido del directorio app/:"
+            ls -la app/
             exit 1
           fi
           
-          echo "✅ Estructura preparada:"
-          ls -lah deploy/
-          ls -lah deploy/otel/
+          echo ""
+          echo "✅ Estructura final del paquete:"
+          echo "================================"
+          ls -lh deploy/
+          echo ""
+          ls -lh deploy/otel/
+          echo "================================"
 
-      # =============================
-      # Desplegar con la estructura completa
-      # =============================
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
@@ -109,12 +118,16 @@ jobs:
           echo "🔍 Verificando deployment..."
           APP_URL="https://${{ secrets.TF_VAR_WEBAPP_BACKEND_NAME }}.azurewebsites.net"
           echo "📍 URL: $APP_URL"
-          sleep 30
           
+          echo "⏳ Esperando 45 segundos para que la app inicie..."
+          sleep 45
+          
+          echo "🧪 Probando endpoint /customer..."
           if curl -f -s "$APP_URL/customer" > /dev/null 2>&1; then
-            echo "✅ Backend desplegado exitosamente"
+            echo "✅ Backend desplegado exitosamente y respondiendo"
           else
-            echo "⚠️ Backend desplegado (puede tardar en iniciar)"
+            echo "⚠️ Backend desplegado pero puede tardar en iniciar"
+            echo "🔗 Verifica manualmente: $APP_URL/customer"
           fi
 
       - name: Azure Logout
