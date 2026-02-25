@@ -289,7 +289,97 @@ resource "azurerm_service_plan" "app_plan" {
 }
 
 ###############################################################
-# 🔟 App Service FRONTEND
+# 🔟 Storage Account para imágenes del frontend
+###############################################################
+
+resource "azurerm_storage_account" "images" {
+  name                     = var.storage_account_name
+  resource_group_name      = azurerm_resource_group.dojo.name
+  location                 = azurerm_resource_group.dojo.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  
+  # Deshabilitar acceso público
+  public_network_access_enabled   = false
+  allow_nested_items_to_be_public = false
+  
+  # Habilitar acceso solo desde VNet
+  network_rules {
+    default_action = "Deny"
+    bypass         = ["AzureServices"]
+  }
+
+  tags = {
+    Environment = "Development"
+    Purpose     = "Frontend Images Storage"
+  }
+}
+
+###############################################################
+# 1️⃣1️⃣ Blob Container para imágenes
+###############################################################
+
+resource "azurerm_storage_container" "images" {
+  name                  = "images"
+  storage_account_name  = azurerm_storage_account.images.name
+  container_access_type = "private"
+}
+
+###############################################################
+# 1️⃣2️⃣ Private DNS Zone para Blob Storage
+###############################################################
+
+resource "azurerm_private_dns_zone" "blob" {
+  name                = "privatelink.blob.core.windows.net"
+  resource_group_name = azurerm_resource_group.dojo.name
+
+  tags = {
+    Environment = "Development"
+  }
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "blob_link" {
+  name                  = "blob-vnet-link"
+  resource_group_name   = azurerm_resource_group.dojo.name
+  private_dns_zone_name = azurerm_private_dns_zone.blob.name
+  virtual_network_id    = azurerm_virtual_network.vnet.id
+  registration_enabled  = false
+
+  tags = {
+    Environment = "Development"
+  }
+}
+
+###############################################################
+# 1️⃣3️⃣ Private Endpoint para Blob Storage
+###############################################################
+
+resource "azurerm_private_endpoint" "blob_pe" {
+  name                = "pe-blob-storage"
+  resource_group_name = azurerm_resource_group.dojo.name
+  location            = azurerm_resource_group.dojo.location
+  subnet_id           = azurerm_subnet.privateendpoint.id
+
+  private_service_connection {
+    name                           = "blob-storage-connection"
+    private_connection_resource_id = azurerm_storage_account.images.id
+    is_manual_connection           = false
+    subresource_names              = ["blob"]
+  }
+
+  private_dns_zone_group {
+    name                 = "blob-dns-zone-group"
+    private_dns_zone_ids = [azurerm_private_dns_zone.blob.id]
+  }
+
+  tags = {
+    Environment = "Development"
+    Purpose     = "Blob Storage Private Access"
+  }
+}
+
+###############################################################
+# 1️⃣4️⃣ App Service FRONTEND
 ###############################################################
 
 resource "azurerm_linux_web_app" "frontend" {
@@ -304,6 +394,9 @@ resource "azurerm_linux_web_app" "frontend" {
     application_stack {
       node_version = "20-lts"
     }
+
+    # ⭐ Habilitar VNet Integration para acceder al Private Endpoint
+    vnet_route_all_enabled = true
   }
 
   app_settings = {
@@ -311,8 +404,14 @@ resource "azurerm_linux_web_app" "frontend" {
     "BACKEND_URL"                  = "https://${var.webapp_backend_name}.azurewebsites.net"
     "VITE_APIURL"                  = "https://webapp-backend-dojo-2026.azurewebsites.net/customer"
     "VITE_ORDERURL"                = "https://webapp-backend-dojo-2026.azurewebsites.net/orders"
+    
+    # ⭐ Variables para acceder al Blob Storage
+    "AZURE_STORAGE_ACCOUNT_NAME"   = azurerm_storage_account.images.name
+    "AZURE_STORAGE_CONTAINER_NAME" = azurerm_storage_container.images.name
+    "AZURE_STORAGE_ENDPOINT"       = "https://${azurerm_storage_account.images.name}.blob.core.windows.net"
   }
 
+  # ⭐ Habilitar Managed Identity
   identity {
     type = "SystemAssigned"
   }
@@ -324,7 +423,17 @@ resource "azurerm_linux_web_app" "frontend" {
 }
 
 ###############################################################
-# 1️⃣1️⃣ App Service BACKEND
+# 1️⃣5️⃣ Asignar rol al Frontend para leer blobs
+###############################################################
+
+resource "azurerm_role_assignment" "frontend_blob_reader" {
+  scope                = azurerm_storage_account.images.id
+  role_definition_name = "Storage Blob Data Reader"
+  principal_id         = azurerm_linux_web_app.frontend.identity[0].principal_id
+}
+
+###############################################################
+# 1️⃣6️⃣ App Service BACKEND
 ###############################################################
 
 resource "azurerm_linux_web_app" "backend" {
@@ -417,7 +526,7 @@ resource "azurerm_linux_web_app" "backend" {
 }
 
 ###############################################################
-# 1️⃣2️⃣ VNet Integration Frontend
+# 1️⃣7️⃣ VNet Integration Frontend
 ###############################################################
 
 resource "azurerm_app_service_virtual_network_swift_connection" "frontend_vnet" {
@@ -426,7 +535,7 @@ resource "azurerm_app_service_virtual_network_swift_connection" "frontend_vnet" 
 }
 
 ###############################################################
-# 1️⃣3️⃣ VNet Integration Backend
+# 1️⃣8️⃣ VNet Integration Backend
 ###############################################################
 
 resource "azurerm_app_service_virtual_network_swift_connection" "backend_vnet" {
@@ -435,7 +544,7 @@ resource "azurerm_app_service_virtual_network_swift_connection" "backend_vnet" {
 }
 
 ###############################################################
-# 1️⃣4️⃣ Private DNS Zone para App Services
+# 1️⃣9️⃣ Private DNS Zone para App Services
 ###############################################################
 
 resource "azurerm_private_dns_zone" "appservice" {
@@ -452,7 +561,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "appservice_link" {
 }
 
 ###############################################################
-# 1️⃣5️⃣ Private Endpoint para Frontend App Service
+# 2️⃣0️⃣ Private Endpoint para Frontend App Service
 ###############################################################
 
 resource "azurerm_private_endpoint" "frontend_pe" {
@@ -475,7 +584,7 @@ resource "azurerm_private_endpoint" "frontend_pe" {
 }
 
 ###############################################################
-# 1️⃣6️⃣ Private Endpoint para Backend App Service
+# 2️⃣1️⃣ Private Endpoint para Backend App Service
 ###############################################################
 
 resource "azurerm_private_endpoint" "backend_pe" {

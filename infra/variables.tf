@@ -136,6 +136,21 @@ variable "webapp_backend_name" {
 }
 
 ###############################################################
+# Variables de Storage Account
+###############################################################
+
+variable "storage_account_name" {
+  type        = string
+  description = "Nombre del Storage Account para imágenes (debe ser único globalmente, solo letras minúsculas y números, 3-24 caracteres)"
+  default     = "stfrontenddojo2026"
+  
+  validation {
+    condition     = can(regex("^[a-z0-9]{3,24}$", var.storage_account_name))
+    error_message = "El nombre del Storage Account debe tener entre 3 y 24 caracteres, solo letras minúsculas y números."
+  }
+}
+
+###############################################################
 # Variables de Application Gateway
 ###############################################################
 

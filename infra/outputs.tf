@@ -73,6 +73,31 @@ output "sql_database_name" {
   description = "Nombre de la base de datos SQL"
   value       = azurerm_mssql_database.db.name
 }
+
+###############################################################
+# Outputs de Storage Account (Blob Storage)
+###############################################################
+
+output "storage_account_name" {
+  description = "Nombre del Storage Account"
+  value       = azurerm_storage_account.images.name
+}
+
+output "storage_account_endpoint" {
+  description = "Endpoint del Blob Storage"
+  value       = azurerm_storage_account.images.primary_blob_endpoint
+}
+
+output "storage_container_name" {
+  description = "Nombre del container de imágenes"
+  value       = azurerm_storage_container.images.name
+}
+
+output "blob_private_endpoint_ip" {
+  description = "IP Privada del Blob Storage Private Endpoint"
+  value       = azurerm_private_endpoint.blob_pe.private_service_connection[0].private_ip_address
+}
+
 ###############################################################
 # Outputs de Conexión OTLP
 ###############################################################
@@ -93,5 +118,50 @@ output "access_summary" {
     "Backend (Directo)"              = "https://${azurerm_linux_web_app.backend.default_hostname}"
     "Kibana"                         = "http://${azurerm_public_ip.vm_pip.ip_address}:5601"
     "Elasticsearch"                  = "http://${azurerm_public_ip.vm_pip.ip_address}:9200"
+    "Blob Storage (Privado)"         = azurerm_storage_account.images.primary_blob_endpoint
+  }
+}
+
+###############################################################
+# Comandos útiles para subir imágenes
+###############################################################
+
+output "upload_images_command" {
+  description = "Comando para subir imágenes al Blob Storage"
+  value       = <<-EOT
+    # Subir una imagen:
+    az storage blob upload \
+      --account-name ${azurerm_storage_account.images.name} \
+      --container-name ${azurerm_storage_container.images.name} \
+      --name mi-imagen.jpg \
+      --file ./ruta/local/mi-imagen.jpg \
+      --auth-mode login
+
+    # Subir múltiples imágenes desde una carpeta:
+    az storage blob upload-batch \
+      --account-name ${azurerm_storage_account.images.name} \
+      --destination ${azurerm_storage_container.images.name} \
+      --source ./carpeta-imagenes/ \
+      --auth-mode login
+
+    # Listar todas las imágenes:
+    az storage blob list \
+      --account-name ${azurerm_storage_account.images.name} \
+      --container-name ${azurerm_storage_container.images.name} \
+      --auth-mode login \
+      --output table
+  EOT
+}
+
+###############################################################
+# Variables de entorno para el Frontend (referencia)
+###############################################################
+
+output "frontend_environment_variables" {
+  description = "Variables de entorno configuradas en el Frontend"
+  value = {
+    "AZURE_STORAGE_ACCOUNT_NAME"   = azurerm_storage_account.images.name
+    "AZURE_STORAGE_CONTAINER_NAME" = azurerm_storage_container.images.name
+    "AZURE_STORAGE_ENDPOINT"       = azurerm_storage_account.images.primary_blob_endpoint
   }
 }
