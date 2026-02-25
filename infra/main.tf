@@ -299,13 +299,13 @@ resource "azurerm_storage_account" "images" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
   
-  # Deshabilitar acceso público
-  public_network_access_enabled   = false
+  # ⭐ CAMBIO: Permitir acceso público durante la creación inicial
+  public_network_access_enabled   = true
   allow_nested_items_to_be_public = false
   
-  # Habilitar acceso solo desde VNet
+  # ⭐ CAMBIO: Permitir acceso desde GitHub Actions durante la creación
   network_rules {
-    default_action = "Deny"
+    default_action = "Allow"
     bypass         = ["AzureServices"]
   }
 
