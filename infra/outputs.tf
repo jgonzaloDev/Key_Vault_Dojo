@@ -99,6 +99,25 @@ output "blob_private_endpoint_ip" {
 }
 
 ###############################################################
+# Outputs de Application Gateway
+###############################################################
+
+output "application_gateway_public_ip" {
+  description = "IP Pública del Application Gateway"
+  value       = azurerm_public_ip.appgw_pip.ip_address
+}
+
+output "application_gateway_url" {
+  description = "URL HTTPS del Application Gateway (punto de entrada principal)"
+  value       = "https://${azurerm_public_ip.appgw_pip.ip_address}"
+}
+
+output "application_gateway_name" {
+  description = "Nombre del Application Gateway"
+  value       = azurerm_application_gateway.appgw.name
+}
+
+###############################################################
 # Outputs de Conexión OTLP
 ###############################################################
 
@@ -114,11 +133,12 @@ output "otlp_endpoint" {
 output "access_summary" {
   description = "Resumen de todas las URLs de acceso"
   value = {
-    "Frontend (Directo)"             = "https://${azurerm_linux_web_app.frontend.default_hostname}"
-    "Backend (Directo)"              = "https://${azurerm_linux_web_app.backend.default_hostname}"
-    "Kibana"                         = "http://${azurerm_public_ip.vm_pip.ip_address}:5601"
-    "Elasticsearch"                  = "http://${azurerm_public_ip.vm_pip.ip_address}:9200"
-    "Blob Storage (Privado)"         = azurerm_storage_account.images.primary_blob_endpoint
+    "Application Gateway (Principal)" = "https://${azurerm_public_ip.appgw_pip.ip_address}"
+    "Frontend (Directo)"              = "https://${azurerm_linux_web_app.frontend.default_hostname}"
+    "Backend (Directo)"               = "https://${azurerm_linux_web_app.backend.default_hostname}"
+    "Kibana"                          = "http://${azurerm_public_ip.vm_pip.ip_address}:5601"
+    "Elasticsearch"                   = "http://${azurerm_public_ip.vm_pip.ip_address}:9200"
+    "Blob Storage (Privado)"          = azurerm_storage_account.images.primary_blob_endpoint
   }
 }
 
