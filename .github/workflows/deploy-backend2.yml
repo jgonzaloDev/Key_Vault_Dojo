@@ -26,7 +26,7 @@ jobs:
       - name: Clonar backend (Spring Boot)
         uses: actions/checkout@v4
         with:
-          repository: jgonzaloDev/BACKEND_20-03-2026
+          repository: jgonzaloDev/BACKEND_MONOLITO_11-FEBRERO-2026
           ref: main
           token: ${{ secrets.GH_PERSONAL_TOKEN }}
           path: backend
