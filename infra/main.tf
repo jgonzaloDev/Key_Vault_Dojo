@@ -489,6 +489,7 @@ resource "azurerm_linux_web_app" "backend" {
     "JAVA_TOOL_OPTIONS"                       = "-javaagent:/home/site/wwwroot/otel/opentelemetry-javaagent.jar"
     "OTEL_SERVICE_NAME"                       = "spring-boot-backend"
     "OTEL_EXPORTER_OTLP_ENDPOINT"             = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4317"
+    "OTEL_EXPORTER_OTLP_HTTP"                 = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4318"
     "OTEL_EXPORTER_OTLP_PROTOCOL"             = "grpc"
     "OTEL_TRACES_EXPORTER"                    = "otlp"
     "OTEL_METRICS_EXPORTER"                   = "otlp"
@@ -504,7 +505,7 @@ resource "azurerm_linux_web_app" "backend" {
     #####################################
     # 🗂️ Azure Blob Storage
     #####################################
-    "CONECTION_STRING_BLOB_STORAGE"           = azurerm_storage_account.images.primary_connection_string
+    "CONNECTION_STRING_BLOB_STORAGE"           = azurerm_storage_account.images.secondary_connection_string
     "CONTAINER_NAME_CUSTOMER"                 = "images"
     "CONTAINER_NAME_ORDER"                    = "images"
 
