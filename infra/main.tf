@@ -478,6 +478,13 @@ resource "azurerm_linux_web_app" "backend" {
     "SPRING_DATASOURCE_PASSWORD"              = var.sql_admin_password
 
     #####################################
+    # 🗂️ Azure Blob Storage
+    #####################################
+    "CONECTION_STRING_BLOB_STORAGE"           = data.azurerm_storage_account.storage.primary_connection_string
+    "CONTAINER_NAME_CUSTOMER"                 = "images"
+    "CONTAINER_NAME_ORDER"                    = "images"
+
+    #####################################
     # 🔍 Application Insights - DESHABILITADO
     #####################################
     "APPLICATIONINSIGHTS_ENABLED"             = "false"
@@ -500,6 +507,13 @@ resource "azurerm_linux_web_app" "backend" {
     "SERVER_PORT"                             = "8080"
     "SPRING_APPLICATION_NAME"                 = "app"
     "SPRING_PROFILES_ACTIVE"                  = "production"
+    "SERVER_SERVLET_CONTEXT_PATH"             = "/api"
+    #####################################
+    # 🗂️ Azure Blob Storage
+    #####################################
+    "CONECTION_STRING_BLOB_STORAGE"           = data.azurerm_storage_account.storage.primary_connection_string
+    "CONTAINER_NAME_CUSTOMER"                 = "images"
+    "CONTAINER_NAME_ORDER"                    = "images"
 
     #####################################
     # 🧩 JPA / Hibernate
