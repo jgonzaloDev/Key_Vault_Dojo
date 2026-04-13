@@ -504,7 +504,7 @@ resource "azurerm_linux_web_app" "backend" {
     #####################################
     # 🗂️ Azure Blob Storage
     #####################################
-    "CONECTION_STRING_BLOB_STORAGE"           = data.azurerm_storage_account.storage.primary_connection_string
+    "CONECTION_STRING_BLOB_STORAGE"           = azurerm_storage_account.images.primary_connection_string
     "CONTAINER_NAME_CUSTOMER"                 = "images"
     "CONTAINER_NAME_ORDER"                    = "images"
 
