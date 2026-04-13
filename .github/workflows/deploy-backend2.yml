@@ -2,10 +2,6 @@ name: Deploy Backend (Spring Boot Multimodulo 2026)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - develop
 
 permissions:
   id-token: write
