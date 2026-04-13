@@ -478,13 +478,6 @@ resource "azurerm_linux_web_app" "backend" {
     "SPRING_DATASOURCE_PASSWORD"              = var.sql_admin_password
 
     #####################################
-    # 🗂️ Azure Blob Storage
-    #####################################
-    "CONECTION_STRING_BLOB_STORAGE"           = data.azurerm_storage_account.storage.primary_connection_string
-    "CONTAINER_NAME_CUSTOMER"                 = "images"
-    "CONTAINER_NAME_ORDER"                    = "images"
-
-    #####################################
     # 🔍 Application Insights - DESHABILITADO
     #####################################
     "APPLICATIONINSIGHTS_ENABLED"             = "false"
