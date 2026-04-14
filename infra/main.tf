@@ -711,7 +711,7 @@ resource "azurerm_application_gateway" "appgw" {
   probe {
     name                                      = "probe-backend"
     protocol                                  = "Https"
-    path                                      = "/customer"
+    path                                      = "/api/customer"
     interval                                  = 30
     timeout                                   = 30
     unhealthy_threshold                       = 3
@@ -771,7 +771,7 @@ resource "azurerm_application_gateway" "appgw" {
     # Regla para Backend - /customer*
     path_rule {
       name                       = "backend-rule"
-      paths                      = ["/customer*"]
+      paths                      = ["/api/customer*"]
       backend_address_pool_name  = local.backend_pool_backend_name
       backend_http_settings_name = local.http_setting_backend_name
     }
@@ -779,7 +779,15 @@ resource "azurerm_application_gateway" "appgw" {
     # Regla para Backend - /order*
     path_rule {
       name                       = "backend-rule2"
-      paths                      = ["/order*"]
+      paths                      = ["/api/order*"]
+      backend_address_pool_name  = local.backend_pool_backend_name
+      backend_http_settings_name = local.http_setting_backend_name
+    }
+
+    # Regla para Backend - /order*
+    path_rule {
+      name                       = "backend-rule3"
+      paths                      = ["/api/otel/v1/traces*"]
       backend_address_pool_name  = local.backend_pool_backend_name
       backend_http_settings_name = local.http_setting_backend_name
     }
