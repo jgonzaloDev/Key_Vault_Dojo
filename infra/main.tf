@@ -489,7 +489,6 @@ resource "azurerm_linux_web_app" "backend" {
     "JAVA_TOOL_OPTIONS"                       = "-javaagent:/home/site/wwwroot/otel/opentelemetry-javaagent.jar"
     "OTEL_SERVICE_NAME"                       = "spring-boot-backend"
     "OTEL_EXPORTER_OTLP_ENDPOINT"             = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4317"
-    "OTEL_EXPORTER_OTLP_HTTP"                 = "http://${azurerm_network_interface.vm_nic.private_ip_address}:4318"
     "OTEL_EXPORTER_OTLP_PROTOCOL"             = "grpc"
     "OTEL_TRACES_EXPORTER"                    = "otlp"
     "OTEL_METRICS_EXPORTER"                   = "otlp"
@@ -784,7 +783,7 @@ resource "azurerm_application_gateway" "appgw" {
       backend_http_settings_name = local.http_setting_backend_name
     }
 
-    # Regla para Backend - /order*
+    # Regla para Backend - /otel/v1/traces*
     path_rule {
       name                       = "backend-rule3"
       paths                      = ["/api/otel/v1/traces*"]
